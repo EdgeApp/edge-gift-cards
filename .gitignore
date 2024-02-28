@@ -1,0 +1,8 @@
+/.idea
+/.vscode/
+/lib/
+/output/
+/node_modules/
+/serverConfig.json
+/types.js
+/types.d.ts
