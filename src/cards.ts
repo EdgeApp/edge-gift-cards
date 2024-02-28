@@ -104,6 +104,17 @@ async function main(): Promise<void> {
       doc.image(publicKeyQR, x + leftPadding + qrSize + dpi(0.5), y, {
         width: qrSize
       })
+      const lastFiveDigits = address.slice(-5)
+      const textY = y + labelHeight - dpi(0.2)
+
+      doc
+        .save()
+        .rotate(270, {
+          origin: [x + leftPadding + qrSize * 2 + dpi(0.45), textY]
+        })
+        .fontSize(6)
+        .text(lastFiveDigits, x + leftPadding + qrSize * 2 + dpi(0.45), textY)
+        .restore()
     }
   }
 
