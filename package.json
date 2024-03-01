@@ -27,7 +27,8 @@
     "lint": "eslint .",
     "precommit": "lint-staged && npm-run-all types prepare test",
     "prepare": "husky install && npm-run-all clean",
-    "start": "node -r sucrase/register ./src/cards.ts",
+    "ltc": "node -r sucrase/register ./src/cards.ts litecoin",
+    "doge": "node -r sucrase/register ./src/cards.ts dogecoin",
     "test": "mocha -r sucrase/register src/__tests__/**/*.test.ts",
     "types": "tsc"
   },

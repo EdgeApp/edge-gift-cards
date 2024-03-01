@@ -1,4 +1,4 @@
-import { payments } from 'altcoin-js'
+import { Network, payments } from 'altcoin-js'
 import ECPairFactory, { ECPairInterface } from 'ecpair'
 import { createWriteStream, existsSync, writeFileSync } from 'fs'
 import PDFDocument from 'pdfkit'
@@ -22,22 +22,36 @@ const topBottomMargin = dpi(0.5) // 1/2 inch in points for top and bottom margin
 const columnGap = dpi(1 / 8) // 1/8 inch in points for gap between columns
 
 const ECPair = ECPairFactory(ecc)
-
-const LITECOIN = {
-  messagePrefix: '\x19Litecoin Signed Message:\n',
-  bech32: 'ltc',
-  bip32: {
-    public: 0x019da462,
-    private: 0x019d9cfe
+const networks: Record<string, Network & { currencyCode: string }> = {
+  litecoin: {
+    currencyCode: 'ltc',
+    messagePrefix: '\x19Litecoin Signed Message:\n',
+    bech32: 'ltc',
+    bip32: {
+      public: 0x019da462,
+      private: 0x019d9cfe
+    },
+    pubKeyHash: 0x30,
+    scriptHash: 0x32,
+    wif: 0xb0
   },
-  pubKeyHash: 0x30,
-  scriptHash: 0x32,
-  wif: 0xb0
+  dogecoin: {
+    currencyCode: 'doge',
+    messagePrefix: '\x18Dogecoin Signed Message:\n',
+    bech32: 'dge',
+    bip32: {
+      public: 0x019da462,
+      private: 0x019d9cfe
+    },
+    pubKeyHash: 0x1e,
+    scriptHash: 0x16,
+    wif: 0x9e
+  }
 }
 
 // Function to generate Litecoin key pair
-function generateLitecoinKeyPair(): ECPairInterface {
-  const keyPair = ECPair.makeRandom({ network: LITECOIN })
+function generateKeyPair(networkName: string): ECPairInterface {
+  const keyPair = ECPair.makeRandom({ network: networks[networkName] })
   return keyPair
 }
 
@@ -54,13 +68,21 @@ async function createQRCode(data: string): Promise<Buffer> {
 
 // Main function to generate keys, QR codes, and PDF
 async function main(): Promise<void> {
+  const networkName = process.argv[2]
+  const chosenNetwork = networks[networkName]
+
+  if (chosenNetwork == null) {
+    console.error('Invalid network')
+    return
+  }
+
   const doc = new PDFDocument({ margin: 0, size: 'LETTER' }) // 8.5" x 11" document
 
   let fileName: string
   let index = 0
   let fullFilePath: string
   while (true) {
-    fileName = 'keys' + index.toString().padStart(4, '0')
+    fileName = `keys-${networkName}-` + index.toString().padStart(4, '0')
     fullFilePath = `${outPath}/${fileName}`
     if (!existsSync(`${fullFilePath}.pdf`)) {
       break
@@ -73,27 +95,22 @@ async function main(): Promise<void> {
 
   doc.pipe(stream)
 
-  // Calculate horizontal and vertical spacing based on document size, label size, and margins
-  // const horizontalSpacing = (columnGap - 2 * leftRightMargin) / (columns - 1)
-  // const verticalSpacing =
-  //   (11 * 72 - 2 * topBottomMargin - rows * labelHeight) / (rows - 1)
-
   for (let row = 0; row < rows; row++) {
     for (let column = 0; column < columns; column++) {
-      const keyPair = generateLitecoinKeyPair()
-      const privKey = keyPair.toWIF()
+      const keyPair = generateKeyPair(networkName)
+      const privKey: string = keyPair.toWIF()
       if (privKey == null) throw new Error('Private key is null')
-      const privateKeyQR = await createQRCode(privKey)
+      const uri = `edge://pay/${networkName}/${privKey}`
+      const privateKeyQR = await createQRCode(uri)
 
       const { address } = payments.p2pkh({
-        network: LITECOIN,
+        network: chosenNetwork,
         pubkey: keyPair.publicKey
       })
       if (address == null) throw new Error('Address is null')
       keysJson.push({ pub: address, priv: privKey })
 
-      const uri = `edge://pay/litecoin/${address}`
-      const publicKeyQR = await createQRCode(uri)
+      const publicKeyQR = await createQRCode(address)
 
       const x = leftRightMargin + column * (labelWidth + columnGap)
       const y = topBottomMargin + topPadding + row * labelHeight
@@ -104,7 +121,9 @@ async function main(): Promise<void> {
       doc.image(publicKeyQR, x + leftPadding + qrSize + dpi(0.5), y, {
         width: qrSize
       })
-      const lastFiveDigits = address.slice(-5)
+      const lastFiveDigits = `${chosenNetwork.currencyCode} ${address.slice(
+        -5
+      )}`
       const textY = y + labelHeight - dpi(0.2)
 
       doc
@@ -119,7 +138,11 @@ async function main(): Promise<void> {
   }
 
   doc.end()
-  writeFileSync(`${fullFilePath}.json`, JSON.stringify(keysJson, null, 2))
+  const fileJson = {
+    network: networkName,
+    keysJson
+  }
+  writeFileSync(`${fullFilePath}.json`, JSON.stringify(fileJson, null, 2))
 }
 
 main().catch(console.error)
