@@ -5,8 +5,10 @@ import PDFDocument from 'pdfkit'
 import * as QRCode from 'qrcode'
 import * as ecc from 'tiny-secp256k1'
 
+import { config } from './config'
+
 const dpi = (x: number): number => x * 72 // Points per inch
-const outPath = './output'
+const outPath = config.cardsFullpath
 
 // Avery label dimensions and page layout
 const labelWidth = dpi(2.625) // 2-5/8 inches in points

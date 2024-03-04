@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "altcoin-js": "^1.0.0",
+    "cleaner-config": "^0.1.10",
     "ecpair": "^2.1.0",
     "pdfkit": "^0.14.0",
     "qrcode": "^1.5.3",
