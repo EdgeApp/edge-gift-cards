@@ -1,7 +1,7 @@
 import { Network, payments } from 'altcoin-js'
 import ECPairFactory, { ECPairInterface } from 'ecpair'
-import { createWriteStream, existsSync, writeFileSync } from 'fs'
-import PDFDocument from 'pdfkit'
+import { existsSync, mkdirSync, writeFileSync } from 'fs'
+import { PDFDocument, RotationTypes } from 'pdf-lib'
 import * as QRCode from 'qrcode'
 import * as ecc from 'tiny-secp256k1'
 
@@ -58,7 +58,7 @@ function generateKeyPair(networkName: string): ECPairInterface {
 }
 
 // Function to create QR code
-async function createQRCode(data: string): Promise<Buffer> {
+async function createQRCode(data: string): Promise<Uint8Array> {
   try {
     const qrCode = await QRCode.toBuffer(data)
     return qrCode
@@ -78,7 +78,8 @@ async function main(): Promise<void> {
     return
   }
 
-  const doc = new PDFDocument({ margin: 0, size: 'LETTER' }) // 8.5" x 11" document
+  const pdfDoc = await PDFDocument.create()
+  const page = pdfDoc.addPage([dpi(8.5), dpi(11)])
 
   let fileName: string
   let index = 0
@@ -91,11 +92,7 @@ async function main(): Promise<void> {
     }
     index++
   }
-
-  const stream = createWriteStream(`${fullFilePath}.pdf`)
   const keysJson: Array<{ pub: string; priv: string }> = []
-
-  doc.pipe(stream)
 
   for (let row = 0; row < rows; row++) {
     for (let column = 0; column < columns; column++) {
@@ -104,6 +101,7 @@ async function main(): Promise<void> {
       if (privKey == null) throw new Error('Private key is null')
       const uri = `edge://pay/${networkName}/${privKey}`
       const privateKeyQR = await createQRCode(uri)
+      const privateKeyImage = await pdfDoc.embedPng(privateKeyQR)
 
       const { address } = payments.p2pkh({
         network: chosenNetwork,
@@ -113,37 +111,56 @@ async function main(): Promise<void> {
       keysJson.push({ pub: address, priv: privKey })
 
       const publicKeyQR = await createQRCode(address)
+      const publicKeyImage = await pdfDoc.embedPng(publicKeyQR)
 
       const x = leftRightMargin + column * (labelWidth + columnGap)
-      const y = topBottomMargin + topPadding + row * labelHeight
+      const y =
+        page.getHeight() +
+        labelHeight -
+        (topBottomMargin + topPadding + (row + 1) * labelHeight)
 
       // Adjust QR code size if necessary to fit within the label dimensions
       const qrSize = labelHeight * 0.9 // Example to fit both QR codes on one label
-      doc.image(privateKeyQR, x + leftPadding, y, { width: qrSize })
-      doc.image(publicKeyQR, x + leftPadding + qrSize + dpi(0.5), y, {
-        width: qrSize
+      page.drawImage(privateKeyImage, {
+        x: x + leftPadding,
+        y: y - qrSize, // Adjust y position for image placement
+        width: qrSize,
+        height: qrSize
       })
-      const lastFiveDigits = `${chosenNetwork.currencyCode} ${address.slice(
-        -5
-      )}`
-      const textY = y + labelHeight - dpi(0.2)
 
-      doc
-        .save()
-        .rotate(270, {
-          origin: [x + leftPadding + qrSize * 2 + dpi(0.45), textY]
-        })
-        .fontSize(6)
-        .text(lastFiveDigits, x + leftPadding + qrSize * 2 + dpi(0.45), textY)
-        .restore()
+      page.drawImage(publicKeyImage, {
+        x: x + leftPadding + qrSize + dpi(0.5),
+        y: y - qrSize, // Adjust y position for image placement
+        width: qrSize,
+        height: qrSize
+      })
+
+      const firstSixDigits = `${chosenNetwork.currencyCode} ${address.slice(
+        0,
+        6
+      )}`
+
+      page.drawText(firstSixDigits, {
+        size: 6,
+        rotate: {
+          type: RotationTypes.Degrees,
+          angle: 90
+        },
+        x: x + leftPadding + qrSize + dpi(0.5) + qrSize,
+        y: y - qrSize + 8 // Adjust y position for image placement
+      })
     }
   }
 
-  doc.end()
-  const fileJson = {
-    network: networkName,
-    keysJson
+  if (!existsSync(outPath)) {
+    mkdirSync(outPath, { recursive: true })
   }
+
+  const pdfBytes = await pdfDoc.save()
+  writeFileSync(`${fullFilePath}.pdf`, pdfBytes)
+
+  // Save keys JSON
+  const fileJson = { network: networkName, keysJson }
   writeFileSync(`${fullFilePath}.json`, JSON.stringify(fileJson, null, 2))
 }
 
