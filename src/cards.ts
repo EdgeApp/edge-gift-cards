@@ -1,11 +1,13 @@
 import { Network, payments } from 'altcoin-js'
 import ECPairFactory, { ECPairInterface } from 'ecpair'
-import { existsSync, mkdirSync, writeFileSync } from 'fs'
-import { PDFDocument, RotationTypes } from 'pdf-lib'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { PDFDocument, PDFImage, RotationTypes } from 'pdf-lib'
 import * as QRCode from 'qrcode'
 import * as ecc from 'tiny-secp256k1'
 
 import { config } from './config'
+
+const debugFilename = false
 
 const dpi = (x: number): number => x * 72 // Points per inch
 const outPath = config.cardsFullpath
@@ -68,6 +70,34 @@ async function createQRCode(data: string): Promise<Uint8Array> {
   }
 }
 
+const generateKeys = async (
+  pdfDoc: PDFDocument,
+  networkName: string
+): Promise<{
+  address: string
+  privKey: string
+  privateKeyImage: PDFImage
+  publicKeyImage: PDFImage
+}> => {
+  const chosenNetwork = networks[networkName]
+  const keyPair = generateKeyPair(networkName)
+  const privKey: string = keyPair.toWIF()
+  if (privKey == null) throw new Error('Private key is null')
+  const uri = `https://deep.edge.app/pay/${networkName}/${privKey}`
+  const privateKeyQR = await createQRCode(uri)
+
+  const { address } = payments.p2pkh({
+    network: chosenNetwork,
+    pubkey: keyPair.publicKey
+  })
+  if (address == null) throw new Error('Address is null')
+  const publicKeyQR = await createQRCode(address)
+  const privateKeyImage = await pdfDoc.embedPng(privateKeyQR)
+  const publicKeyImage = await pdfDoc.embedPng(publicKeyQR)
+
+  return { address, privateKeyImage, privKey, publicKeyImage }
+}
+
 // Main function to generate keys, QR codes, and PDF
 async function main(): Promise<void> {
   const networkName = process.argv[2]
@@ -79,7 +109,8 @@ async function main(): Promise<void> {
   }
 
   const pdfDoc = await PDFDocument.create()
-  const page = pdfDoc.addPage([dpi(8.5), dpi(11)])
+  const frontPage = pdfDoc.addPage([dpi(8.5), dpi(11)])
+  const backPage = pdfDoc.addPage([dpi(8.5), dpi(11)])
 
   let fileName: string
   let index = 0
@@ -92,63 +123,137 @@ async function main(): Promise<void> {
     }
     index++
   }
+  if (debugFilename) {
+    fileName = `keys-${networkName}-` + '9999'
+    fullFilePath = `${outPath}/${fileName}`
+  }
+
   const keysJson: Array<{ pub: string; priv: string }> = []
 
-  for (let row = 0; row < rows; row++) {
-    for (let column = 0; column < columns; column++) {
-      const keyPair = generateKeyPair(networkName)
-      const privKey: string = keyPair.toWIF()
-      if (privKey == null) throw new Error('Private key is null')
-      const uri = `edge://pay/${networkName}/${privKey}`
-      const privateKeyQR = await createQRCode(uri)
-      const privateKeyImage = await pdfDoc.embedPng(privateKeyQR)
+  if (config.printToCard) {
+    const frontCardBytes = readFileSync('./pdf/2024-03-EdgeGiftCard-front.pdf')
+    const backCardBytes = readFileSync('./pdf/2024-03-EdgeGiftCard-back.pdf')
+    const frontCardPdf = await PDFDocument.load(frontCardBytes)
+    const backCardPdf = await PDFDocument.load(backCardBytes)
 
-      const { address } = payments.p2pkh({
-        network: chosenNetwork,
-        pubkey: keyPair.publicKey
-      })
-      if (address == null) throw new Error('Address is null')
-      keysJson.push({ pub: address, priv: privKey })
+    // Import the business card PDF page
+    const [frontCardPage] = await pdfDoc.embedPdf(frontCardPdf, [0])
+    const [backCardPage] = await pdfDoc.embedPdf(backCardPdf, [0])
 
-      const publicKeyQR = await createQRCode(address)
-      const publicKeyImage = await pdfDoc.embedPng(publicKeyQR)
+    const qrSize = dpi(1) // Example to fit both QR codes on one label
+    const cardBleed = dpi(0.125)
+    const width = dpi(3.5) + cardBleed * 2
+    const height = dpi(2) + cardBleed * 2
 
-      const x = leftRightMargin + column * (labelWidth + columnGap)
-      const y =
-        page.getHeight() +
-        labelHeight -
-        (topBottomMargin + topPadding + (row + 1) * labelHeight)
+    for (let row = 0; row < 4; row++) {
+      // Printing on HP LaserJet Pro 400 M401dn causes a slight vertical shift
+      // Compensate for this by adjusting the y position of the cards
+      const yFudge = row * dpi(0.03125)
+      const y = dpi(0.25 + (row + 1) * 0.5 + row * 2) - cardBleed + yFudge
+      const imageY = y + 0.36 * height
 
-      // Adjust QR code size if necessary to fit within the label dimensions
-      const qrSize = labelHeight * 0.9 // Example to fit both QR codes on one label
-      page.drawImage(privateKeyImage, {
-        x: x + leftPadding,
-        y: y - qrSize, // Adjust y position for image placement
-        width: qrSize,
-        height: qrSize
-      })
+      for (let column = 0; column < 2; column++) {
+        const { address, privateKeyImage, privKey, publicKeyImage } =
+          await generateKeys(pdfDoc, networkName)
 
-      page.drawImage(publicKeyImage, {
-        x: x + leftPadding + qrSize + dpi(0.5),
-        y: y - qrSize, // Adjust y position for image placement
-        width: qrSize,
-        height: qrSize
-      })
+        keysJson.push({ pub: address, priv: privKey })
 
-      const firstSixDigits = `${chosenNetwork.currencyCode} ${address.slice(
-        0,
-        6
-      )}`
+        const x = dpi(0.5 + column * 4) - cardBleed
 
-      page.drawText(firstSixDigits, {
-        size: 6,
-        rotate: {
-          type: RotationTypes.Degrees,
-          angle: 90
-        },
-        x: x + leftPadding + qrSize + dpi(0.5) + qrSize,
-        y: y - qrSize + 8 // Adjust y position for image placement
-      })
+        // Draw the front of the card
+        frontPage.drawPage(frontCardPage, {
+          x,
+          y,
+          width,
+          height
+        })
+
+        frontPage.drawImage(privateKeyImage, {
+          x: x + 0.61 * width,
+          y: imageY,
+          width: qrSize,
+          height: qrSize
+        })
+
+        const backColumn = column === 0 ? 1 : 0
+        const backX = dpi(0.5 + backColumn * 4) - cardBleed
+
+        // Draw the back of the card
+        backPage.drawPage(backCardPage, {
+          x: backX,
+          y,
+          width,
+          height
+        })
+
+        backPage.drawImage(publicKeyImage, {
+          x: backX + dpi(0.25),
+          y: imageY,
+          width: qrSize,
+          height: qrSize
+        })
+
+        const firstDigits = `${chosenNetwork.currencyCode} ${address.slice(
+          0,
+          8
+        )}`
+
+        backPage.drawText(firstDigits, {
+          size: 6,
+          rotate: {
+            type: RotationTypes.Degrees,
+            angle: 90
+          },
+          x: backX + dpi(0.25) + qrSize,
+          y: imageY + dpi(0.125) // Adjust y position for image placement
+        })
+      }
+    }
+  } else {
+    for (let row = 0; row < rows; row++) {
+      for (let column = 0; column < columns; column++) {
+        const { address, privateKeyImage, privKey, publicKeyImage } =
+          await generateKeys(pdfDoc, networkName)
+
+        keysJson.push({ pub: address, priv: privKey })
+
+        const x = leftRightMargin + column * (labelWidth + columnGap)
+        const y =
+          frontPage.getHeight() +
+          labelHeight -
+          (topBottomMargin + topPadding + (row + 1) * labelHeight)
+
+        // Adjust QR code size if necessary to fit within the label dimensions
+        const qrSize = labelHeight * 0.9 // Example to fit both QR codes on one label
+        frontPage.drawImage(privateKeyImage, {
+          x: x + leftPadding,
+          y: y - qrSize, // Adjust y position for image placement
+          width: qrSize,
+          height: qrSize
+        })
+
+        frontPage.drawImage(publicKeyImage, {
+          x: x + leftPadding + qrSize + dpi(0.5),
+          y: y - qrSize, // Adjust y position for image placement
+          width: qrSize,
+          height: qrSize
+        })
+
+        const firstSixDigits = `${chosenNetwork.currencyCode} ${address.slice(
+          0,
+          6
+        )}`
+
+        frontPage.drawText(firstSixDigits, {
+          size: 6,
+          rotate: {
+            type: RotationTypes.Degrees,
+            angle: 90
+          },
+          x: x + leftPadding + qrSize + dpi(0.5) + qrSize,
+          y: y - qrSize + 8 // Adjust y position for image placement
+        })
+      }
     }
   }
 
@@ -164,4 +269,4 @@ async function main(): Promise<void> {
   writeFileSync(`${fullFilePath}.json`, JSON.stringify(fileJson, null, 2))
 }
 
-main().catch(console.error)
+main().catch(e => console.error(String(e)))
