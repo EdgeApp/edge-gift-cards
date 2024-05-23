@@ -25,6 +25,10 @@ const leftRightMargin = dpi(3 / 16) // 3/16 inch in points for left and right ma
 const topBottomMargin = dpi(0.5) // 1/2 inch in points for top and bottom margins
 const columnGap = dpi(1 / 8) // 1/8 inch in points for gap between columns
 
+// For HP LaserJet Pro 400 M401dn, each side is slightly offset
+const backPagePrinterOffsetY = -dpi(1 / 16)
+const frontPagePrinterOffsetX = -dpi(1 / 16)
+
 const ECPair = ECPairFactory(ecc)
 const networks: Record<string, Network & { currencyCode: string }> = {
   litecoin: {
@@ -167,14 +171,14 @@ async function main(): Promise<void> {
 
         // Draw the front of the card
         frontPage.drawPage(frontCardPage, {
-          x,
+          x: x + frontPagePrinterOffsetX,
           y,
           width,
           height
         })
 
         frontPage.drawImage(privateKeyImage, {
-          x: x + 0.61 * width,
+          x: x + frontPagePrinterOffsetX + 0.61 * width,
           y: imageY,
           width: qrSize,
           height: qrSize
@@ -186,14 +190,14 @@ async function main(): Promise<void> {
         // Draw the back of the card
         backPage.drawPage(backCardPage, {
           x: backX,
-          y,
+          y: backPagePrinterOffsetY + y,
           width,
           height
         })
 
         backPage.drawImage(publicKeyImage, {
           x: backX + dpi(0.25),
-          y: imageY,
+          y: imageY + backPagePrinterOffsetY,
           width: qrSize,
           height: qrSize
         })
@@ -210,7 +214,7 @@ async function main(): Promise<void> {
             angle: 90
           },
           x: backX + dpi(0.25) + qrSize,
-          y: imageY + dpi(0.125) // Adjust y position for image placement
+          y: imageY + dpi(0.125) + backPagePrinterOffsetY // Adjust y position for image placement
         })
       }
     }
