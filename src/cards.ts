@@ -113,18 +113,23 @@ async function main(): Promise<void> {
   const backPage = pdfDoc.addPage([dpi(8.5), dpi(11)])
 
   let fileName: string
-  let index = 0
   let fullFilePath: string
   while (true) {
-    fileName = `keys-${networkName}-` + index.toString().padStart(4, '0')
+    const timeIndex = new Date()
+      .toISOString()
+      .slice(2, 19)
+      .replace(/T/g, '_')
+      .replace(/-/g, '')
+      .replace(/:/g, '')
+
+    fileName = `keys-${networkName}-` + timeIndex
     fullFilePath = `${outPath}/${fileName}`
     if (!existsSync(`${fullFilePath}.pdf`)) {
       break
     }
-    index++
   }
   if (debugFilename) {
-    fileName = `keys-${networkName}-` + '9999'
+    fileName = `keys-${networkName}-` + '999999_999999'
     fullFilePath = `${outPath}/${fileName}`
   }
 
