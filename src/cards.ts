@@ -105,8 +105,15 @@ const generateKeys = async (
 // Main function to generate keys, QR codes, and PDF
 async function main(): Promise<void> {
   const networkName = process.argv[2]
-  const chosenNetwork = networks[networkName]
+  const numCards = parseInt(process.argv[3] ?? '1')
 
+  for (let i = 0; i < numCards; i++) {
+    await makeCards(networkName)
+  }
+}
+
+async function makeCards(networkName: string): Promise<void> {
+  const chosenNetwork = networks[networkName]
   if (chosenNetwork == null) {
     console.error('Invalid network')
     return
