@@ -19,4 +19,17 @@ Run Yarn
 
 Create PDF sheet of labels
 
-    yarn start
+    yarn [coin] [number of sheets (optional)]
+
+ie
+
+    yarn doge
+
+    yarn ltc
+
+Create several PDF sheets
+
+    yarn ltc 8
+
+    yarn doge 10
+
