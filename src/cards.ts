@@ -31,6 +31,18 @@ const frontPagePrinterOffsetX = -dpi(1 / 16)
 
 const ECPair = ECPairFactory(ecc)
 const networks: Record<string, Network & { currencyCode: string }> = {
+  bitcoin: {
+    currencyCode: 'btc',
+    messagePrefix: '\x18Bitcoin Signed Message:\n',
+    bech32: 'bc',
+    bip32: {
+      public: 0x019da462,
+      private: 0x019d9cfe
+    },
+    pubKeyHash: 0x00,
+    scriptHash: 0x05,
+    wif: 0x80
+  },
   litecoin: {
     currencyCode: 'ltc',
     messagePrefix: '\x19Litecoin Signed Message:\n',
