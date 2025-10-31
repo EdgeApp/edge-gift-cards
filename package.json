@@ -28,7 +28,9 @@
     "precommit": "lint-staged && npm-run-all types prepare test",
     "prepare": "husky install && npm-run-all clean",
     "btc": "node -r sucrase/register ./src/cards.ts bitcoin",
+    "bch": "node -r sucrase/register ./src/cards.ts bitcoincash",
     "doge": "node -r sucrase/register ./src/cards.ts dogecoin",
+    "dash": "node -r sucrase/register ./src/cards.ts dash",
     "ltc": "node -r sucrase/register ./src/cards.ts litecoin",
     "test": "mocha -r sucrase/register src/__tests__/**/*.test.ts",
     "types": "tsc"

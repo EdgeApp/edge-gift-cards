@@ -43,6 +43,18 @@ const networks: Record<string, Network & { currencyCode: string }> = {
     scriptHash: 0x05,
     wif: 0x80
   },
+  bitcoincash: {
+    currencyCode: 'bch',
+    messagePrefix: '\x18Bitcoin Signed Message:\n',
+    bech32: 'bc',
+    bip32: {
+      public: 0x019da462,
+      private: 0x019d9cfe
+    },
+    pubKeyHash: 0x00,
+    scriptHash: 0x05,
+    wif: 0x80
+  },
   litecoin: {
     currencyCode: 'ltc',
     messagePrefix: '\x19Litecoin Signed Message:\n',
@@ -54,6 +66,18 @@ const networks: Record<string, Network & { currencyCode: string }> = {
     pubKeyHash: 0x30,
     scriptHash: 0x32,
     wif: 0xb0
+  },
+  dash: {
+    currencyCode: 'dash',
+    messagePrefix: '\x18Dash Signed Message:\n',
+    bech32: '',
+    bip32: {
+      public: 0x019da462,
+      private: 0x019d9cfe
+    },
+    pubKeyHash: 0x4c,
+    scriptHash: 0x10,
+    wif: 0xcc
   },
   dogecoin: {
     currencyCode: 'doge',
