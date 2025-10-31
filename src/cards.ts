@@ -7,7 +7,18 @@ import * as ecc from 'tiny-secp256k1'
 
 import { config } from './config'
 
+interface DeviceOffset {
+  front: { x: number; y: number }
+  back: { x: number; y: number }
+}
+
 const debugFilename = false
+
+const deviceOffsets: Record<string, DeviceOffset> = {
+  default: { front: { x: 0, y: 0 }, back: { x: 0, y: 0 } },
+  m454: { front: { x: 0, y: -2 }, back: { x: 0, y: 1 } },
+  m451: { front: { x: -1, y: 0 }, back: { x: 0, y: -1 } }
+}
 
 const dpi = (x: number): number => x * 72 // Points per inch
 const outPath = config.cardsFullpath
@@ -24,10 +35,6 @@ const topPadding = dpi(0.125 / 2)
 const leftRightMargin = dpi(3 / 16) // 3/16 inch in points for left and right margins
 const topBottomMargin = dpi(0.5) // 1/2 inch in points for top and bottom margins
 const columnGap = dpi(1 / 8) // 1/8 inch in points for gap between columns
-
-// For HP LaserJet Pro 400 M401dn, each side is slightly offset
-const backPagePrinterOffsetY = -dpi(1 / 16)
-const frontPagePrinterOffsetX = -dpi(1 / 16)
 
 const ECPair = ECPairFactory(ecc)
 const networks: Record<string, Network & { currencyCode: string }> = {
@@ -141,14 +148,38 @@ const generateKeys = async (
 // Main function to generate keys, QR codes, and PDF
 async function main(): Promise<void> {
   const networkName = process.argv[2]
-  const numCards = parseInt(process.argv[3] ?? '1')
+  const deviceName = process.argv[3]
+  const numCards = parseInt(process.argv[4] ?? '1')
 
+  const deviceOffset = deviceOffsets[deviceName ?? 'default']
+
+  if (deviceOffset == null) {
+    console.error('Invalid device name')
+    console.error('Valid device names:')
+    console.error(Object.keys(deviceOffsets).splice(0, 1).join(', '))
+    process.exit(1)
+  }
+
+  // Add the dpi to the offset
+  const offset = {
+    front: {
+      x: dpi(deviceOffset.front.x / 16),
+      y: dpi(deviceOffset.front.y / 16)
+    },
+    back: {
+      x: dpi(deviceOffset.back.x / 16),
+      y: dpi(deviceOffset.back.y / 16)
+    }
+  }
   for (let i = 0; i < numCards; i++) {
-    await makeCards(networkName)
+    await makeCards(networkName, offset)
   }
 }
 
-async function makeCards(networkName: string): Promise<void> {
+async function makeCards(
+  networkName: string,
+  offset: DeviceOffset
+): Promise<void> {
   const chosenNetwork = networks[networkName]
   if (chosenNetwork == null) {
     console.error('Invalid network')
@@ -214,15 +245,15 @@ async function makeCards(networkName: string): Promise<void> {
 
         // Draw the front of the card
         frontPage.drawPage(frontCardPage, {
-          x: x + frontPagePrinterOffsetX,
-          y,
+          x: offset.front.x + x,
+          y: offset.front.y + y,
           width,
           height
         })
 
         frontPage.drawImage(privateKeyImage, {
-          x: x + frontPagePrinterOffsetX + 0.61 * width,
-          y: imageY,
+          x: offset.front.x + x + 0.61 * width,
+          y: offset.front.y + imageY,
           width: qrSize,
           height: qrSize
         })
@@ -232,15 +263,15 @@ async function makeCards(networkName: string): Promise<void> {
 
         // Draw the back of the card
         backPage.drawPage(backCardPage, {
-          x: backX,
-          y: backPagePrinterOffsetY + y,
+          x: offset.back.x + backX,
+          y: offset.back.y + y,
           width,
           height
         })
 
         backPage.drawImage(publicKeyImage, {
-          x: backX + dpi(0.25),
-          y: imageY + backPagePrinterOffsetY,
+          x: offset.back.x + backX + dpi(0.25),
+          y: offset.back.y + imageY,
           width: qrSize,
           height: qrSize
         })
@@ -256,8 +287,8 @@ async function makeCards(networkName: string): Promise<void> {
             type: RotationTypes.Degrees,
             angle: 90
           },
-          x: backX + dpi(0.25) + qrSize,
-          y: imageY + dpi(0.125) + backPagePrinterOffsetY // Adjust y position for image placement
+          x: offset.back.x + backX + dpi(0.25) + qrSize,
+          y: offset.back.y + imageY + dpi(0.125) // Adjust y position for image placement
         })
       }
     }
