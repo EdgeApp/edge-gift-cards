@@ -29,17 +29,20 @@
     "test": "bun test",
     "precommit": "lint-staged && npm-run-all types prepare test",
     "prepare": "husky install && npm-run-all clean",
+    "postinstall": "patch-package",
     "btc": "bun ./src/cards.ts bitcoin",
     "bch": "bun ./src/cards.ts bitcoincash",
     "doge": "bun ./src/cards.ts dogecoin",
     "dash": "bun ./src/cards.ts dash",
     "ltc": "bun ./src/cards.ts litecoin",
+    "zano": "bun ./src/cards.ts zano",
     "types": "tsc -p tsconfig.build.json"
   },
   "lint-staged": {
     "*.{js,ts}": "eslint"
   },
   "dependencies": {
+    "@zano-project/zano-utils-js": "^0.0.3",
     "altcoin-js": "^1.0.0",
     "cleaner-config": "^0.1.10",
     "ecpair": "^2.1.0",
@@ -69,6 +72,7 @@
     "mocha": "^9.0.2",
     "node-fetch": "^2.6.2",
     "npm-run-all": "^4.1.5",
+    "patch-package": "^8.0.1",
     "prettier": "^2.2.0",
     "promisify-node": "^0.5.0",
     "rimraf": "^3.0.2",

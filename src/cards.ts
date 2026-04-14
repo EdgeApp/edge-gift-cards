@@ -4,6 +4,7 @@ import { PDFDocument, PDFImage, RotationTypes } from 'pdf-lib'
 import * as QRCode from 'qrcode'
 
 import { makeUtxoAdapters } from './adapters/utxo'
+import { makeZanoAdapters } from './adapters/zano'
 import { makeCardKeygen } from './cardKeygen'
 import { config } from './config'
 
@@ -36,7 +37,10 @@ const leftRightMargin = dpi(3 / 16) // 3/16 inch in points for left and right ma
 const topBottomMargin = dpi(0.5) // 1/2 inch in points for top and bottom margins
 const columnGap = dpi(1 / 8) // 1/8 inch in points for gap between columns
 
-const cardKeygen = makeCardKeygen(makeUtxoAdapters())
+const cardKeygen = makeCardKeygen([
+  ...makeUtxoAdapters(),
+  ...makeZanoAdapters()
+])
 
 // Function to create QR code
 async function createQRCode(data: string): Promise<Uint8Array> {

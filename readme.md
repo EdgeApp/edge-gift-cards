@@ -22,6 +22,8 @@ ie
 
     bun ltc
 
+    bun zano
+
 Create several PDF sheets
 
     bun ltc -- default 8

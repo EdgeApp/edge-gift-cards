@@ -1,9 +1,13 @@
-import { describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { makeUtxoAdapters } from '../src/adapters/utxo'
+import { makeZanoAdapters } from '../src/adapters/zano'
 import { makeCardKeygen } from '../src/cardKeygen'
 
-const cardKeygen = makeCardKeygen(makeUtxoAdapters())
+const cardKeygen = makeCardKeygen([
+  ...makeUtxoAdapters(),
+  ...makeZanoAdapters()
+])
 const testEntropy = Uint8Array.fromHex('ed9e'.repeat(16))
 
 interface CardKeygenFixture {
@@ -12,8 +16,24 @@ interface CardKeygenFixture {
   readonly expectedAddress: string
   readonly expectedPrivKey: string
 }
-function testCardKeygenFixture(fixture: CardKeygenFixture): void {
+
+interface CardKeygenFixtureHooks {
+  readonly beforeEach?: () => void
+  readonly afterEach?: () => void
+}
+
+function testCardKeygenFixture(
+  fixture: CardKeygenFixture,
+  hooks?: CardKeygenFixtureHooks
+): void {
   describe(fixture.networkName, () => {
+    if (hooks?.beforeEach != null) {
+      beforeEach(hooks.beforeEach)
+    }
+    if (hooks?.afterEach != null) {
+      afterEach(hooks.afterEach)
+    }
+
     it('returns expected network metadata', () => {
       const networkMeta = cardKeygen.getNetworkMeta(fixture.networkName)
       expect(networkMeta).not.toBeNull()
@@ -62,6 +82,17 @@ describe('Card keygen', () => {
     expectedAddress: 'DHtMLd1JzMaYSALnJ7SBdWJp7VWWnzMyxZ',
     expectedPrivKey: 'QWaXkv8tpWaqM3NEXWF1NGbjPZJvN5BtKCYXkwyxuYUAsudwJPuY'
   })
+  testCardKeygenFixture(
+    {
+      networkName: 'zano',
+      currencyCode: 'zano',
+      expectedAddress:
+        'ZxDG5iV9oQ7REsYaAif9xmUXpc12nWodi4EnzdLPMy1C3qDwv9s388oBy8FXcwjdhZ4sCw9y5nRTqMDbowRMTW3J1n9HzWQFw',
+      expectedPrivKey:
+        'slap rose puzzle slap rose puzzle slap rose puzzle slap rose puzzle slap rose puzzle slap rose puzzle slap rose puzzle slap rose puzzle anymore stun'
+    },
+    makeFixedDateNowHooks(1700000000000)
+  )
 
   it('returns null metadata for unknown network', () => {
     expect(cardKeygen.getNetworkMeta('unknown')).toBeNull()
@@ -73,3 +104,20 @@ describe('Card keygen', () => {
     )
   })
 })
+
+/**
+ * Make hooks for deterministic `Date.now` for adapters whose mnemonics embed
+ * a timestamp (e.g. Zano).
+ **/
+function makeFixedDateNowHooks(ms: number): CardKeygenFixtureHooks {
+  let saved: typeof Date.now
+  return {
+    beforeEach: () => {
+      saved = Date.now
+      Date.now = () => ms
+    },
+    afterEach: () => {
+      Date.now = saved
+    }
+  }
+}
