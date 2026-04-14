@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { PDFDocument, PDFImage, RotationTypes } from 'pdf-lib'
 import * as QRCode from 'qrcode'
@@ -57,7 +58,7 @@ const generateKeys = async (
   privateKeyImage: PDFImage
   publicKeyImage: PDFImage
 }> => {
-  const { address, privKey } = cardKeygen.generate(networkName)
+  const { address, privKey } = cardKeygen.generate(networkName, randomBytes(32))
   const uri = `https://deep.edge.app/pay/${networkName}/${privKey}`
   const privateKeyQR = await createQRCode(uri)
 

@@ -68,7 +68,7 @@ describe('Card keygen', () => {
   })
 
   it('throws for unknown network generation', () => {
-    expect(() => cardKeygen.generate('unknown')).toThrow(
+    expect(() => cardKeygen.generate('unknown', testEntropy)).toThrow(
       'No keygen adapter registered for network "unknown"'
     )
   })

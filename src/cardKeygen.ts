@@ -1,12 +1,12 @@
 export interface CardKeygen {
   getNetworkMeta: (networkName: string) => CardKeygenNetworkMeta | null
-  generate: (networkName: string, entropy?: Uint8Array) => CardKeygenResult
+  generate: (networkName: string, entropy: Uint8Array) => CardKeygenResult
 }
 
 export interface CardKeygenAdapter {
   readonly networkName: string
   readonly networkMeta: CardKeygenNetworkMeta
-  generate: (entropy?: Uint8Array) => CardKeygenResult
+  generate: (entropy: Uint8Array) => CardKeygenResult
 }
 
 export interface CardKeygenResult {
@@ -36,7 +36,7 @@ export function makeCardKeygen(adapters: CardKeygenAdapter[]): CardKeygen {
       return adapter.networkMeta
     },
 
-    generate(networkName: string, entropy?: Uint8Array) {
+    generate(networkName: string, entropy: Uint8Array) {
       const adapter = adaptersByNetwork[networkName]
       if (adapter == null) {
         throw new Error(

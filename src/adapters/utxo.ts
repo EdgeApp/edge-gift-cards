@@ -80,13 +80,13 @@ function makeUtxoAdapter(
     networkName,
     networkMeta: { currencyCode: network.currencyCode },
 
-    generate(entropy?: Uint8Array) {
-      const keyPair =
-        entropy == null
-          ? ECPair.makeRandom({ network })
-          : ECPair.fromPrivateKey(makePrivateKeyFromEntropy(entropy), {
-              network
-            })
+    generate(entropy: Uint8Array) {
+      const keyPair = ECPair.fromPrivateKey(
+        makePrivateKeyFromEntropy(entropy),
+        {
+          network
+        }
+      )
       const privKey = keyPair.toWIF()
       if (privKey == null) throw new Error('Private key is null')
 
