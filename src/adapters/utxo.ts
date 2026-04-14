@@ -1,4 +1,5 @@
 import { Network, payments } from 'altcoin-js'
+import { createHash } from 'crypto'
 import ECPairFactory from 'ecpair'
 import * as ecc from 'tiny-secp256k1'
 
@@ -79,8 +80,13 @@ function makeUtxoAdapter(
     networkName,
     networkMeta: { currencyCode: network.currencyCode },
 
-    generate() {
-      const keyPair = ECPair.makeRandom({ network })
+    generate(entropy?: Uint8Array) {
+      const keyPair =
+        entropy == null
+          ? ECPair.makeRandom({ network })
+          : ECPair.fromPrivateKey(makePrivateKeyFromEntropy(entropy), {
+              network
+            })
       const privKey = keyPair.toWIF()
       if (privKey == null) throw new Error('Private key is null')
 
@@ -99,4 +105,25 @@ export function makeUtxoAdapters(): CardKeygenAdapter[] {
   return Object.entries(networks).map(([networkName, network]) =>
     makeUtxoAdapter(networkName, network)
   )
+}
+
+function makePrivateKeyFromEntropy(entropy: Uint8Array): Buffer {
+  const maybePrivateKey = Buffer.from(entropy)
+  if (maybePrivateKey.length === 32 && ecc.isPrivate(maybePrivateKey)) {
+    return maybePrivateKey
+  }
+
+  const seed = maybePrivateKey
+  let counter = 0
+  while (true) {
+    const counterBuffer = Buffer.alloc(4)
+    counterBuffer.writeUInt32BE(counter)
+    counter += 1
+
+    const candidate = createHash('sha256')
+      .update(seed)
+      .update(counterBuffer)
+      .digest()
+    if (ecc.isPrivate(candidate)) return candidate
+  }
 }
