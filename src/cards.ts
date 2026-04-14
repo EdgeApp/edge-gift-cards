@@ -1,10 +1,9 @@
-import { Network, payments } from 'altcoin-js'
-import ECPairFactory, { ECPairInterface } from 'ecpair'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { PDFDocument, PDFImage, RotationTypes } from 'pdf-lib'
 import * as QRCode from 'qrcode'
-import * as ecc from 'tiny-secp256k1'
 
+import { makeUtxoAdapters } from './adapters/utxo'
+import { makeCardKeygen } from './cardKeygen'
 import { config } from './config'
 
 interface DeviceOffset {
@@ -36,75 +35,7 @@ const leftRightMargin = dpi(3 / 16) // 3/16 inch in points for left and right ma
 const topBottomMargin = dpi(0.5) // 1/2 inch in points for top and bottom margins
 const columnGap = dpi(1 / 8) // 1/8 inch in points for gap between columns
 
-const ECPair = ECPairFactory(ecc)
-const networks: Record<string, Network & { currencyCode: string }> = {
-  bitcoin: {
-    currencyCode: 'btc',
-    messagePrefix: '\x18Bitcoin Signed Message:\n',
-    bech32: 'bc',
-    bip32: {
-      public: 0x019da462,
-      private: 0x019d9cfe
-    },
-    pubKeyHash: 0x00,
-    scriptHash: 0x05,
-    wif: 0x80
-  },
-  bitcoincash: {
-    currencyCode: 'bch',
-    messagePrefix: '\x18Bitcoin Signed Message:\n',
-    bech32: 'bc',
-    bip32: {
-      public: 0x019da462,
-      private: 0x019d9cfe
-    },
-    pubKeyHash: 0x00,
-    scriptHash: 0x05,
-    wif: 0x80
-  },
-  litecoin: {
-    currencyCode: 'ltc',
-    messagePrefix: '\x19Litecoin Signed Message:\n',
-    bech32: 'ltc',
-    bip32: {
-      public: 0x019da462,
-      private: 0x019d9cfe
-    },
-    pubKeyHash: 0x30,
-    scriptHash: 0x32,
-    wif: 0xb0
-  },
-  dash: {
-    currencyCode: 'dash',
-    messagePrefix: '\x18Dash Signed Message:\n',
-    bech32: '',
-    bip32: {
-      public: 0x019da462,
-      private: 0x019d9cfe
-    },
-    pubKeyHash: 0x4c,
-    scriptHash: 0x10,
-    wif: 0xcc
-  },
-  dogecoin: {
-    currencyCode: 'doge',
-    messagePrefix: '\x18Dogecoin Signed Message:\n',
-    bech32: 'dge',
-    bip32: {
-      public: 0x019da462,
-      private: 0x019d9cfe
-    },
-    pubKeyHash: 0x1e,
-    scriptHash: 0x16,
-    wif: 0x9e
-  }
-}
-
-// Function to generate Litecoin key pair
-function generateKeyPair(networkName: string): ECPairInterface {
-  const keyPair = ECPair.makeRandom({ network: networks[networkName] })
-  return keyPair
-}
+const cardKeygen = makeCardKeygen(makeUtxoAdapters())
 
 // Function to create QR code
 async function createQRCode(data: string): Promise<Uint8Array> {
@@ -126,18 +57,10 @@ const generateKeys = async (
   privateKeyImage: PDFImage
   publicKeyImage: PDFImage
 }> => {
-  const chosenNetwork = networks[networkName]
-  const keyPair = generateKeyPair(networkName)
-  const privKey: string = keyPair.toWIF()
-  if (privKey == null) throw new Error('Private key is null')
+  const { address, privKey } = cardKeygen.generate(networkName)
   const uri = `https://deep.edge.app/pay/${networkName}/${privKey}`
   const privateKeyQR = await createQRCode(uri)
 
-  const { address } = payments.p2pkh({
-    network: chosenNetwork,
-    pubkey: keyPair.publicKey
-  })
-  if (address == null) throw new Error('Address is null')
   const publicKeyQR = await createQRCode(address)
   const privateKeyImage = await pdfDoc.embedPng(privateKeyQR)
   const publicKeyImage = await pdfDoc.embedPng(publicKeyQR)
@@ -180,8 +103,8 @@ async function makeCards(
   networkName: string,
   offset: DeviceOffset
 ): Promise<void> {
-  const chosenNetwork = networks[networkName]
-  if (chosenNetwork == null) {
+  const networkMeta = cardKeygen.getNetworkMeta(networkName)
+  if (networkMeta == null) {
     console.error('Invalid network')
     return
   }
@@ -276,10 +199,7 @@ async function makeCards(
           height: qrSize
         })
 
-        const firstDigits = `${chosenNetwork.currencyCode} ${address.slice(
-          0,
-          8
-        )}`
+        const firstDigits = `${networkMeta.currencyCode} ${address.slice(0, 8)}`
 
         backPage.drawText(firstDigits, {
           size: 6,
@@ -322,7 +242,7 @@ async function makeCards(
           height: qrSize
         })
 
-        const firstSixDigits = `${chosenNetwork.currencyCode} ${address.slice(
+        const firstSixDigits = `${networkMeta.currencyCode} ${address.slice(
           0,
           6
         )}`
