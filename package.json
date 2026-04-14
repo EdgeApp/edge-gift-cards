@@ -20,20 +20,21 @@
   },
   "license": "MIT",
   "author": "Paul Puey <paul@edge.app>",
+  "packageManager": "bun@1.3.12",
   "scripts": {
-    "build": "sucrase -q -t typescript,imports -d ./lib ./src && yarn tsc",
+    "build": "sucrase -q -t typescript,imports -d ./lib ./src && tsc -p tsconfig.build.json",
     "clean": "rimraf dist lib",
     "fix": "eslint . --fix",
     "lint": "eslint .",
+    "test": "bun test",
     "precommit": "lint-staged && npm-run-all types prepare test",
     "prepare": "husky install && npm-run-all clean",
-    "btc": "node -r sucrase/register ./src/cards.ts bitcoin",
-    "bch": "node -r sucrase/register ./src/cards.ts bitcoincash",
-    "doge": "node -r sucrase/register ./src/cards.ts dogecoin",
-    "dash": "node -r sucrase/register ./src/cards.ts dash",
-    "ltc": "node -r sucrase/register ./src/cards.ts litecoin",
-    "test": "mocha -r sucrase/register src/__tests__/**/*.test.ts",
-    "types": "tsc"
+    "btc": "bun ./src/cards.ts bitcoin",
+    "bch": "bun ./src/cards.ts bitcoincash",
+    "doge": "bun ./src/cards.ts dogecoin",
+    "dash": "bun ./src/cards.ts dash",
+    "ltc": "bun ./src/cards.ts litecoin",
+    "types": "tsc -p tsconfig.build.json"
   },
   "lint-staged": {
     "*.{js,ts}": "eslint"
@@ -47,6 +48,7 @@
     "tiny-secp256k1": "^2.2.3"
   },
   "devDependencies": {
+    "@types/bun": "^1.3.12",
     "@types/chai": "^4.3.1",
     "@types/mocha": "^8.2.2",
     "@types/node": "^14.0.22",
@@ -72,6 +74,6 @@
     "rimraf": "^3.0.2",
     "sprintf-js": "^1.1.1",
     "sucrase": "^3.12.1",
-    "typescript": "^4.1.2"
+    "typescript": "5.9.3"
   }
 }

@@ -4,32 +4,27 @@
 
 #### Installation
 
-Install Yarn
+Install Bun
 
-    https://linuxize.com/post/how-to-install-yarn-on-ubuntu-18-04/
+    https://bun.sh/docs/installation
 
-Install Node
+Install dependencies
 
-    curl -sL https://deb.nodesource.com/setup_10.x -o nodesource_setup.sh
-    sudo bash nodesource_setup.sh
-
-Run Yarn
-
-    yarn
+    bun install
 
 Create PDF sheet of labels
 
-    yarn [coin] [number of sheets (optional)]
+    bun [coin] [device (optional)] [number of sheets (optional)]
 
 ie
 
-    yarn doge
+    bun doge
 
-    yarn ltc
+    bun ltc
 
 Create several PDF sheets
 
-    yarn ltc 8
+    bun ltc -- default 8
 
-    yarn doge 10
+    bun doge -- default 10
 
