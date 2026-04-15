@@ -103,6 +103,17 @@ describe('Card keygen', () => {
       'No keygen adapter registered for network "unknown"'
     )
   })
+
+  it('lists registered network names in stable order', () => {
+    expect(cardKeygen.listNetworkNames()).toEqual([
+      'bitcoin',
+      'bitcoincash',
+      'dash',
+      'dogecoin',
+      'litecoin',
+      'zano'
+    ])
+  })
 })
 
 /**

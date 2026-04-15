@@ -42,6 +42,22 @@ const cardKeygen = makeCardKeygen([
   ...makeZanoAdapters()
 ])
 
+function printGenUsage(): void {
+  const networks = cardKeygen.listNetworkNames()
+  const devices = Object.keys(deviceOffsets)
+    .sort((a, b) => a.localeCompare(b))
+    .join(', ')
+  console.log(`Usage: bun gen <network> [device] [sheets]
+
+  network   Keygen network id (see below)
+  device    Printer offset preset: ${devices} (default: default)
+  sheets    Number of PDF sheets to generate (default: 1)
+
+Networks:
+${networks.map(name => `  ${name}`).join('\n')}
+`)
+}
+
 // Function to create QR code
 async function createQRCode(data: string): Promise<Uint8Array> {
   try {
@@ -78,6 +94,22 @@ async function main(): Promise<void> {
   const networkName = process.argv[2]
   const deviceName = process.argv[3]
   const numCards = parseInt(process.argv[4] ?? '1')
+
+  if (
+    networkName == null ||
+    networkName === '' ||
+    networkName === '-h' ||
+    networkName === '--help'
+  ) {
+    printGenUsage()
+    process.exit(0)
+  }
+
+  if (cardKeygen.getNetworkMeta(networkName) == null) {
+    console.error(`Unknown network "${networkName}".`)
+    printGenUsage()
+    process.exit(1)
+  }
 
   const deviceOffset = deviceOffsets[deviceName ?? 'default']
 

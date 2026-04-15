@@ -30,12 +30,7 @@
     "precommit": "lint-staged && npm-run-all types prepare test",
     "prepare": "husky install && npm-run-all clean",
     "postinstall": "patch-package",
-    "btc": "bun ./src/cards.ts bitcoin",
-    "bch": "bun ./src/cards.ts bitcoincash",
-    "doge": "bun ./src/cards.ts dogecoin",
-    "dash": "bun ./src/cards.ts dash",
-    "ltc": "bun ./src/cards.ts litecoin",
-    "zano": "bun ./src/cards.ts zano",
+    "gen": "bun ./src/cards.ts",
     "types": "tsc -p tsconfig.build.json"
   },
   "lint-staged": {

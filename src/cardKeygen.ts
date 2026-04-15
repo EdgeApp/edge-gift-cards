@@ -1,6 +1,7 @@
 export interface CardKeygen {
   getNetworkMeta: (networkName: string) => CardKeygenNetworkMeta | null
   generate: (networkName: string, entropy: Uint8Array) => CardKeygenResult
+  listNetworkNames: () => string[]
 }
 
 export interface CardKeygenAdapter {
@@ -34,6 +35,10 @@ export function makeCardKeygen(adapters: CardKeygenAdapter[]): CardKeygen {
       const adapter = adaptersByNetwork[networkName]
       if (adapter == null) return null
       return adapter.networkMeta
+    },
+
+    listNetworkNames(): string[] {
+      return Object.keys(adaptersByNetwork).sort((a, b) => a.localeCompare(b))
     },
 
     generate(networkName: string, entropy: Uint8Array) {

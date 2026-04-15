@@ -12,21 +12,22 @@ Install dependencies
 
     bun install
 
-Create PDF sheet of labels
+#### Generate PDF sheets
 
-    bun [coin] [device (optional)] [number of sheets (optional)]
+Use the `gen` script with a **network** name (see below). Optional arguments: **device** (printer offset preset) and **sheets** (how many PDFs to generate).
 
-ie
+    bun gen <network> [device] [sheets]
 
-    bun doge
+Show usage and the list of supported network names:
 
-    bun ltc
+    bun gen
 
-    bun zano
+Examples:
 
-Create several PDF sheets
+    bun gen bitcoin
 
-    bun ltc -- default 8
+    bun gen dogecoin
 
-    bun doge -- default 10
+    bun gen litecoin default 8
 
+Network names are the keygen ids (for example `bitcoin`, `litecoin`, `dogecoin`, `zano`). Run `bun gen` with no arguments to print the full list for this project.
