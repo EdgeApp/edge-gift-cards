@@ -89,7 +89,7 @@ describe('Card keygen', () => {
       expectedAddress:
         'ZxDG5iV9oQ7REsYaAif9xmUXpc12nWodi4EnzdLPMy1C3qDwv9s388oBy8FXcwjdhZ4sCw9y5nRTqMDbowRMTW3J1n9HzWQFw',
       expectedPrivKey:
-        'slap rose puzzle slap rose puzzle slap rose puzzle slap rose puzzle slap rose puzzle slap rose puzzle slap rose puzzle slap rose puzzle anymore stun'
+        '2oehsoAYzjctGUA6ZNW8ekuMNRfPsbu1zoS13Kac6yoXx66h9F'
     },
     makeFixedDateNowHooks(1700000000000)
   )
