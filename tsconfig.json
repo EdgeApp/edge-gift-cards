@@ -1,19 +1,15 @@
 {
-    "compilerOptions": {
-      "declaration": true,
-      "rootDir": "src/",
-      "declarationDir": "lib/",
-      "emitDeclarationOnly": true,
-
-      "esModuleInterop": true,
-      "module": "ES2020",
-      "moduleResolution": "node",
-      "jsx": "react",
-      "resolveJsonModule": true,
-      "target": "es2020",
-
-      "strict": true,
-      "noImplicitAny": false
-    },
-    "exclude": ["node_modules", "lib"]
-  }
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "module": "ES2020",
+    "moduleResolution": "node",
+    "jsx": "react",
+    "resolveJsonModule": true,
+    "target": "es2020",
+    "noEmit": true,
+    "strict": true,
+    "noImplicitAny": false
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules", "lib"]
+}

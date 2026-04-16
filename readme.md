@@ -4,32 +4,30 @@
 
 #### Installation
 
-Install Yarn
+Install Bun
 
-    https://linuxize.com/post/how-to-install-yarn-on-ubuntu-18-04/
+    https://bun.sh/docs/installation
 
-Install Node
+Install dependencies
 
-    curl -sL https://deb.nodesource.com/setup_10.x -o nodesource_setup.sh
-    sudo bash nodesource_setup.sh
+    bun install
 
-Run Yarn
+#### Generate PDF sheets
 
-    yarn
+Use the `gen` script with a **network** name (see below). Optional arguments: **device** (printer offset preset) and **sheets** (how many PDFs to generate).
 
-Create PDF sheet of labels
+    bun gen <network> [device] [sheets]
 
-    yarn [coin] [number of sheets (optional)]
+Show usage and the list of supported network names:
 
-ie
+    bun gen
 
-    yarn doge
+Examples:
 
-    yarn ltc
+    bun gen bitcoin
 
-Create several PDF sheets
+    bun gen dogecoin
 
-    yarn ltc 8
+    bun gen litecoin default 8
 
-    yarn doge 10
-
+Network names are the keygen ids (for example `bitcoin`, `litecoin`, `dogecoin`, `zano`). Run `bun gen` with no arguments to print the full list for this project.
