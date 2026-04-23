@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
-import { PDFDocument, PDFImage, RotationTypes } from 'pdf-lib'
+import { PDFDocument, PDFEmbeddedPage, PDFImage, RotationTypes } from 'pdf-lib'
 import * as QRCode from 'qrcode'
 
 import { makeUtxoAdapters } from './adapters/utxo'
@@ -131,15 +131,7 @@ async function main(): Promise<void> {
       y: dpi(deviceOffset.back.y / 16)
     }
   }
-  for (let i = 0; i < numCards; i++) {
-    await makeCards(networkName, offset)
-  }
-}
 
-async function makeCards(
-  networkName: string,
-  offset: DeviceOffset
-): Promise<void> {
   const networkMeta = cardKeygen.getNetworkMeta(networkName)
   if (networkMeta == null) {
     console.error('Invalid network')
@@ -147,8 +139,33 @@ async function makeCards(
   }
 
   const pdfDoc = await PDFDocument.create()
-  const frontPage = pdfDoc.addPage([dpi(8.5), dpi(11)])
-  const backPage = pdfDoc.addPage([dpi(8.5), dpi(11)])
+
+  // Pre-embed the card template pages once so all sheets can reuse them.
+  let frontCardPage: PDFEmbeddedPage | undefined
+  let backCardPage: PDFEmbeddedPage | undefined
+  if (config.printToCard) {
+    const frontCardBytes = readFileSync('./pdf/2024-03-EdgeGiftCard-front.pdf')
+    const backCardBytes = readFileSync('./pdf/2024-03-EdgeGiftCard-back.pdf')
+    const frontCardPdf = await PDFDocument.load(frontCardBytes)
+    const backCardPdf = await PDFDocument.load(backCardBytes)
+
+    ;[frontCardPage] = await pdfDoc.embedPdf(frontCardPdf, [0])
+    ;[backCardPage] = await pdfDoc.embedPdf(backCardPdf, [0])
+  }
+
+  const keysJson: Array<{ pub: string; priv: string }> = []
+
+  for (let i = 0; i < numCards; i++) {
+    await makeSheet({
+      pdfDoc,
+      networkName,
+      networkMeta,
+      offset,
+      keysJson,
+      frontCardPage,
+      backCardPage
+    })
+  }
 
   let fileName: string
   let fullFilePath: string
@@ -171,17 +188,43 @@ async function makeCards(
     fullFilePath = `${outPath}/${fileName}`
   }
 
-  const keysJson: Array<{ pub: string; priv: string }> = []
+  if (!existsSync(outPath)) {
+    mkdirSync(outPath, { recursive: true })
+  }
+
+  const pdfBytes = await pdfDoc.save()
+  writeFileSync(`${fullFilePath}.pdf`, pdfBytes)
+
+  const fileJson = { network: networkName, keysJson }
+  writeFileSync(`${fullFilePath}.json`, JSON.stringify(fileJson, null, 2))
+}
+
+interface MakeSheetParams {
+  pdfDoc: PDFDocument
+  networkName: string
+  networkMeta: NonNullable<ReturnType<typeof cardKeygen.getNetworkMeta>>
+  offset: DeviceOffset
+  keysJson: Array<{ pub: string; priv: string }>
+  frontCardPage?: PDFEmbeddedPage
+  backCardPage?: PDFEmbeddedPage
+}
+
+async function makeSheet({
+  pdfDoc,
+  networkName,
+  networkMeta,
+  offset,
+  keysJson,
+  frontCardPage,
+  backCardPage
+}: MakeSheetParams): Promise<void> {
+  const frontPage = pdfDoc.addPage([dpi(8.5), dpi(11)])
+  const backPage = pdfDoc.addPage([dpi(8.5), dpi(11)])
 
   if (config.printToCard) {
-    const frontCardBytes = readFileSync('./pdf/2024-03-EdgeGiftCard-front.pdf')
-    const backCardBytes = readFileSync('./pdf/2024-03-EdgeGiftCard-back.pdf')
-    const frontCardPdf = await PDFDocument.load(frontCardBytes)
-    const backCardPdf = await PDFDocument.load(backCardBytes)
-
-    // Import the business card PDF page
-    const [frontCardPage] = await pdfDoc.embedPdf(frontCardPdf, [0])
-    const [backCardPage] = await pdfDoc.embedPdf(backCardPdf, [0])
+    if (frontCardPage == null || backCardPage == null) {
+      throw new Error('Card template pages were not embedded')
+    }
 
     const qrSize = dpi(1) // Example to fit both QR codes on one label
     const cardBleed = dpi(0.125)
@@ -296,17 +339,6 @@ async function makeCards(
       }
     }
   }
-
-  if (!existsSync(outPath)) {
-    mkdirSync(outPath, { recursive: true })
-  }
-
-  const pdfBytes = await pdfDoc.save()
-  writeFileSync(`${fullFilePath}.pdf`, pdfBytes)
-
-  // Save keys JSON
-  const fileJson = { network: networkName, keysJson }
-  writeFileSync(`${fullFilePath}.json`, JSON.stringify(fileJson, null, 2))
 }
 
 main().catch(e => console.error(String(e)))
